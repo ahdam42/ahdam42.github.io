@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Graph Visualization</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        .node-group {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .node {
+            transition: r 0.3s, fill 0.3s, stroke 0.3s;
+            fill: #69b3a2;
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            border-radius: 8px;
+            pointer-events: none;
+            font: 12px sans-serif;
+            z-index: 1001;
+        }
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 300px;
+            z-index: 1000;
+        }
+        .article-list {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            background: rgba(255,255,255,0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 250px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .article-list h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .article-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .article-list li {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            color: #444;
+        }
+        .article-list li:hover {
+            background: #f0f0f0;
+            transform: translateX(5px);
+        }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        strong {
+            font-weight: 600;
+        }
+        .article-link {
+            color: inherit;
+            text-decoration: none;
+            display: block;
+        }
+        .article-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="control-panel">
+        <div class="control-group">
+            <label>Min Links: <span id="minLinksValue">0</span></label>
+            <input type="range" id="minLinks" min="0" max="20" value="0">
+        </div>
+        <div class="control-group">
+            <label>Repulsion: <span id="chargeValue">-800</span></label>
+            <input type="range" id="charge" min="-1000" max="0" value="-800">
+        </div>
+        <div class="control-group">
+            <label>Link Distance: <span id="distanceValue">100</span></label>
+            <input type="range" id="distance" min="50" max="500" value="100">
+        </div>
+        <div class="control-group">
+            <label>Collision: <span id="collideValue">25</span></label>
+            <input type="range" id="collide" min="0" max="50" value="25">
+        </div>
+        <div class="control-group">
+            <label>Link Power: <span id="linkPowerValue">2</span></label>
+            <input type="range" id="linkPower" min="0.5" max="3" step="0.1" value="2">
+        </div>
+    </div>
+
+    <div class="article-list">
+        <h3>Articles by Citation</h3>
+        <ul id="articleList"></ul>
+    </div>
+
+    <svg width="100%" height="100vh"></svg>
+    <div class="tooltip"></div>
+
+    <script>
+        let simulation;
+        let allNodes = [];
+        let allLinks = [];
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        const forces = {
+            charge: d3.forceManyBody(),
+            collide: d3.forceCollide(),
+            link: d3.forceLink(),
+            center: d3.forceCenter(width/2, height/2)
+        };
+
+        d3.json('document_links.json').then(data => {
+            allNodes = Object.keys(data).map(id => {
+                const summary = data[id].summary;
+                const titleMatch = summary.match(/Title([^\n]+)/i);
+                return {
+                    id: id,
+                    title: titleMatch[1]? titleMatch[1].replace('\:\*\*', '').replace('\*\*\:', '').replaceAll('"', '')  : 'Untitled Article',
+                    summary: summary.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'),
+                    links: 0
+                };
+            });
+
+            allLinks = [];
+            allNodes.forEach(source => {
+                const targets = data[source.id]?.links?.arxiv || [];
+                targets.forEach(targetId => {
+                    const target = allNodes.find(n => n.id === targetId);
+                    if (target && source.id !== target.id) {
+                        allLinks.push({ source, target });
+                        source.links++;
+                        target.links++;
+                    }
+                });
+            });
+
+            const sortedNodes = [...allNodes].sort((a, b) => b.links - a.links);
+            const list = d3.select("#articleList")
+                .selectAll("li")
+                .data(sortedNodes)
+                .enter()
+                .append("li")
+                .html(d => `<a href="https://arxiv.org/abs/${d.id}" target="_blank" class="article-link">${d.title} <br><small>ArXiv: ${d.id}, Links: ${d.links}</small></a>`)
+                .on("mouseover", function(event, d) {
+                    d3.selectAll(".node")
+                        .filter(node => node.id === d.id)
+                        .transition()
+                        .attr("r", node => Math.sqrt(node.links) * 5 + 8)
+                        .style("fill", "#ff4444")
+                        .style("stroke", "#cc0000");
+                })
+                .on("mouseout", function(event, d) {
+                    d3.selectAll(".node")
+                        .filter(node => node.id === d.id)
+                        .transition()
+                        .attr("r", node => Math.sqrt(node.links) * 5 + 5)
+                        .style("fill", "#69b3a2")
+                        .style("stroke", "#fff");
+                });
+
+            initializeVisualization();
+            setupControls();
+            applyFilter(0);
+        });
+
+        function initializeVisualization() {
+            const svg = d3.select("svg")
+                .call(d3.zoom().on("zoom", event => {
+                    d3.select("svg g").attr("transform", event.transform);
+                }))
+                .append("g");
+        }
+
+        function applyFilter(minLinks) {
+            const filteredNodes = allNodes.filter(n => n.links >= minLinks);
+            const filteredLinks = allLinks.filter(l => 
+                filteredNodes.includes(l.source) && 
+                filteredNodes.includes(l.target)
+            );
+
+            const svg = d3.select("svg g");
+
+            const links = svg.selectAll(".link")
+                .data(filteredLinks, d => `${d.source.id}-${d.target.id}`);
+
+            links.exit().remove();
+            links.enter().append("line").attr("class", "link").merge(links);
+
+            const nodeGroups = svg.selectAll(".node-group")
+                .data(filteredNodes, d => d.id);
+
+            const nodeGroupsExit = nodeGroups.exit();
+            nodeGroupsExit.select("circle").remove();
+            nodeGroupsExit.remove();
+
+            const nodeGroupsEnter = nodeGroups.enter()
+                .append("a")
+                .attr("class", "node-group")
+                .attr("href", d => `https://arxiv.org/abs/${d.id}`)
+                .attr("transform", d => `translate(${d.x || width/2},${d.y || height/2})`);
+
+            nodeGroupsEnter.append("circle").attr("class", "node").attr("r", d => Math.sqrt(d.links) * 5 + 5);
+
+            const mergedNodes = nodeGroupsEnter.merge(nodeGroups);
+
+            mergedNodes.select("circle")
+                .attr("r", d => Math.sqrt(d.links) * 5 + 5)
+                .call(d3.drag().on("start", dragStart).on("drag", dragging).on("end", dragEnd))
+                .on("mouseover", showTooltip)
+                .on("mouseout", hideTooltip);
+
+            restartSimulation(filteredNodes, filteredLinks);
+        }
+
+        function restartSimulation(nodes, links) {
+            if (simulation) simulation.stop();
+
+            updateForces();
+
+            nodes.forEach(node => {
+                const group = d3.select(`.node-group[data-id="${node.id}"]`);
+                if (!group.empty()) group.attr("transform", `translate(${node.x},${node.y})`);
+            });
+
+            simulation = d3.forceSimulation(nodes)
+                .velocityDecay(0.4)
+                .force("link", forces.link.links(links).id(d => d.id))
+                .force("charge", forces.charge.strength(() => document.getElementById("charge").value))
+                .force("collide", forces.collide.radius(d => Math.max(1, Math.sqrt(d.links) * 8 + parseInt(document.getElementById("collide").value))))
+                .force("center", forces.center)
+                .alphaDecay(0.02)
+                .on("tick", () => {
+                    d3.selectAll(".link")
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+                    d3.selectAll(".node-group").attr("transform", d => `translate(${d.x},${d.y})`);
+                });
+
+            for (let i = 0; i < 200; i++) simulation.tick();
+            simulation.alpha(1).restart();
+        }
+
+        function updateForces() {
+            const linkPower = parseFloat(document.getElementById("linkPower").value);
+            forces.link.distance(d => {
+                const baseDistance = document.getElementById("distance").value;
+                const powerFactor = Math.pow(Math.min(d.source.links, d.target.links) + 1, 1/linkPower);
+                return baseDistance * powerFactor;
+            });
+        }
+
+        function setupControls() {
+            const updateValues = () => {
+                document.getElementById("minLinksValue").textContent = document.getElementById("minLinks").value;
+                document.getElementById("chargeValue").textContent = document.getElementById("charge").value;
+                document.getElementById("distanceValue").textContent = document.getElementById("distance").value;
+                document.getElementById("collideValue").textContent = document.getElementById("collide").value;
+                document.getElementById("linkPowerValue").textContent = document.getElementById("linkPower").value;
+            };
+
+            document.querySelectorAll("input").forEach(input => {
+                input.addEventListener("input", () => {
+                    updateValues();
+                    applyFilter(document.getElementById("minLinks").value);
+                });
+            });
+
+            window.addEventListener("resize", () => {
+                forces.center.x(window.innerWidth/2).y(window.innerHeight/2);
+                if (simulation) simulation.alpha(0.5).restart();
+            });
+
+            updateValues();
+        }
+
+        function dragStart(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragging(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragEnd(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        function showTooltip(event, d) {
+            d3.select(".tooltip")
+                .style("left", `${event.pageX + 15}px`)
+                .style("top", `${event.pageY + 15}px`)
+                .style("display", "block")
+                .html(`${d.summary.replace(/\n/g, '<br>')}<br><br><strong>arXiv ID:</strong> ${d.id}<br><br><strong>Connections:</strong> ${d.links}`);
+        }
+
+        function hideTooltip() {
+            d3.select(".tooltip").style("display", "none");
+        }
+    </script>
+</body>
+</html>
