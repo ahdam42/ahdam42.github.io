@@ -8,10 +8,8 @@
     <style>
         .node-group {
             cursor: pointer;
-            transition: transform 0.3s;
         }
         .node {
-            transition: r 0.3s, fill 0.3s, stroke 0.3s;
             fill: #69b3a2;
             stroke: #fff;
             stroke-width: 1.5px;
@@ -103,7 +101,7 @@
         </div>
         <div class="control-group">
             <label>Repulsion: <span id="chargeValue">-800</span></label>
-            <input type="range" id="charge" min="-1000" max="0" value="-800">
+            <input type="range" id="charge" min="-2000" max="0" value="-800">
         </div>
         <div class="control-group">
             <label>Link Distance: <span id="distanceValue">100</span></label>
@@ -115,7 +113,7 @@
         </div>
         <div class="control-group">
             <label>Link Power: <span id="linkPowerValue">2</span></label>
-            <input type="range" id="linkPower" min="0.5" max="3" step="0.1" value="2">
+            <input type="range" id="linkPower" min="0.5" max="5" step="0.1" value="2">
         </div>
     </div>
 
