@@ -129,7 +129,7 @@ Summary:"""
 def get_llm_response(prompt, temperature=0.8):
     try:
         data = {
-            "model": "dolphin-2.9.3-mistral-nemo-12b",
+            "model": "mistral-nemo-instruct-2407",
             "messages": [{"role": "user", "content": prompt}],
             "temperature": temperature,
             "max_tokens": -1
