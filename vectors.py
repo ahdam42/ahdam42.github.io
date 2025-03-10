@@ -70,3 +70,30 @@ if __name__ == "__main__":
     print(f"Косинусное сходство: {cosine_similarity([vector1], [vector5])[0][0]}")
 
     print("Time: ", time.time() - start_time)
+
+
+'''
+import numpy as np
+import faiss
+
+# Генерация случайных векторов для примера
+np.random.seed(1234)
+vectors = np.random.random((1000, 128)).astype('float32')
+
+# Создание индекса FAISS
+index = faiss.IndexFlatL2(128)  # 128 - размерность векторов
+
+# Добавление векторов в индекс
+index.add(vectors)
+
+# Поиск 5 наиболее похожих векторов для заданного вектора
+query_vector = np.random.random((1, 128)).astype('float32')
+k = 5
+distances, indices = index.search(query_vector, k)
+
+print("Индексы наиболее похожих векторов:", indices)
+print("Расстояния до наиболее похожих векторов:", distances)
+
+print(indices[0][0])
+print(len(vectors[indices[0][0]]))
+'''

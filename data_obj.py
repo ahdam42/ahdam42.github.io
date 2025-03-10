@@ -1,5 +1,63 @@
 from pydantic import BaseModel
+import logging
+
+import json
 
 
-class Delivery(BaseModel):
-    dimensions: tuple[int, int]
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.FileHandler('processing.log'), logging.StreamHandler()]
+)
+
+
+def load_paper(path):
+    try:
+        with open(path2json, 'r') as f:
+            content_saved = json.load(f)
+        obj = BasePaper(**content_saved)
+    except FileNotFoundError:
+        logging.warning("File not found: " + path)
+        obj = None
+
+    return obj
+
+
+class BasePaper(BaseModel):
+    title: str
+    abstract: str
+    link_paper: str
+    link_github: str = ''
+    version: int
+
+    doc: dict
+
+    vec: list
+    index: int
+
+
+if __name__ == "__main__":
+    path2json = "obj_json_text.json"
+
+    content = {
+        "title": "Flattened Convolutional Neural Networks For Feedforward Acceleration",
+        "abstract": "We present flattened convolutional neural networks that are designed for fast feedforward execution. The redundancy of the parameters, especially weights of the convolutional filters in convolutional neural networks has been extensively studied and different heuristics have been proposed to construct a low rank basis of the filters after training. In this work, we train flattened networks that consist of consecutive sequence of one-dimensional filters across all directions in 3D space to obtain comparable performance as conventional convolutional networks. We tested flattened model on different datasets and found that the flattened layer can effectively substitute for the 3D filters without loss of accuracy. The flattened convolution pipelines provide around two times speed-up during feedforward pass compared to the baseline model due to the significant reduction of learning parameters. Furthermore, the proposed method does not require efforts in manual tuning or post processing once the model is trained.",
+        "link_paper": "https://arxiv.org/abs/1412.5474",
+        "link_github": "",
+        "version": 4,
+        "doc": {},
+        "vec": [],
+        "index": 0
+    }
+
+    obj = load_paper(path2json)
+
+    if obj is None:
+        obj = BasePaper(**content)
+
+    print(obj.title)
+    obj_json = obj.model_dump_json()
+    print(obj_json)
+
+    with open(path2json, 'w') as f:
+        f.write(obj_json)
