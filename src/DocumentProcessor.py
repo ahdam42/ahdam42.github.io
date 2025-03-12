@@ -3,10 +3,11 @@ from pathlib import Path
 
 from typing import List, Callable
 
-from src.DAO import ProcessingState
-from src.prompt import LLMService, PromptService
-from src.utils import PDFUtils
-from src.utils.utils import batched, sanitize_text, setup_signal_handler
+from DAO.ProcessingState import ProcessingState
+from prompt.LLMService import LLMService
+from prompt.PromptService import PromptService
+from utils.PDFUtils import PDFUtils
+from utils.utils import batched, sanitize_text, setup_signal_handler
 
 GROUP_SIZE = 10  # Items per aggregation group
 

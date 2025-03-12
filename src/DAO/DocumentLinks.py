@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import logging
 
-from src.utils.utils import normalize_arxiv_id
+from utils.utils import normalize_arxiv_id
 
 class DocumentLinks:
     def __init__(self):

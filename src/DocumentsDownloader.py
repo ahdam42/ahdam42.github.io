@@ -1,10 +1,12 @@
 import logging
 from pathlib import Path
 
-from src.DAO import ResearchState, DocumentLinks
-from src.prompt import LLMService, PromptService
-from src.utils import PDFUtils
-from src.utils.utils import normalize_arxiv_id, setup_signal_handler
+from DAO.ResearchState import ResearchState
+from DAO.DocumentLinks import DocumentLinks
+from prompt.LLMService import LLMService
+from prompt.PromptService import PromptService
+from utils.PDFUtils import PDFUtils
+from utils.utils import normalize_arxiv_id, setup_signal_handler
 
 def check_relevance(candidate_summary, arxiv_id):
     try:
