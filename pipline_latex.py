@@ -1,70 +1,113 @@
 import pylatexenc.latexwalker as pylxt
+import re
+from typing import Union
 
 import src.DAO.DataObj as DataObj
 
-def get_title(node):
+
+def lock_search(func):
+    """
+    After walk through the list of latex nodes, function must be reset - func(Any=None, reset_lock_search=True)
+    """
+    def wrapped(*args, **kwargs):
+        # check and add attributes
+        try:
+            _ = func.__flag__
+            _ = func.__cache__
+        except AttributeError:
+            func.__flag__ = False
+            func.__cache__ = ''
+
+        # reset latch
+        if 'reset_lock_search' in kwargs:
+            func.__flag__ = False
+            func.__cache__ = ''
+            return func.__cache__
+
+        # run main function
+        if not func.__flag__:
+            rez = func(*args, **kwargs)
+        else:
+            return func.__cache__
+
+        # check result: bypass or lock
+        if rez is None:
+            return func.__cache__
+        else:
+            func.__flag__ = True
+            func.__cache__ = rez
+            return func.__cache__
+    return wrapped
+
+
+def get_document(nodes: list) -> Union[None, pylxt.LatexEnvironmentNode]:
+    for nd in nodes:
+        if type(nd) is pylxt.LatexEnvironmentNode:
+            return nd
+    return None
+
+@lock_search
+def get_title(node, reset_lock_search=False) -> Union[None, str]:
     if type(node) is pylxt.LatexMacroNode:
         node: pylxt.LatexMacroNode
 
         if node.macroname == 'title':
             return node.nodeargd.argnlist[0].nodelist[0].chars
     else:
-        return ''
+        return None
 
-def get_author(node):
+
+@lock_search
+def get_authors(node, reset_lock_search=False) -> Union[None, str]:
     if type(node) is pylxt.LatexMacroNode:
         node: pylxt.LatexMacroNode
 
+        author_line = ''
         if node.macroname == 'author':
-            for i in node.nodeargd.argnlist[0].nodelist:
-                print(i)
-            print(node.nodeargd.argnlist)
-            return node.nodeargd.argnlist[0].nodelist[0].chars
+            for nd in node.nodeargd.argnlist[0].nodelist:
+                if type(nd) is pylxt.LatexCharsNode:
+                    nd: pylxt.LatexCharsNode
+
+                    author_line += nd.chars
+
+        if author_line:
+            author_line = re.sub(r'\s+', ' ', author_line)
+
+            return author_line
+        else:
+            return None
     else:
-        return ''
+        return None
 
 
-path2latex = 'arx.tex'
+def simple_parser(latex_nodes: list) -> DataObj.Paper:
+    env = get_document(paper_nodes)
 
-with open(path2latex, 'r') as f:
-    latex_txt = f.read()
+    paper_obj = DataObj.Paper()
 
-# Создание экземпляра LatexWalker
-walker = pylxt.LatexWalker(latex_txt)
+    for nd in env.nodelist:
+        paper_obj.title = get_title(nd)
+        paper_obj.authors = get_authors(nd)
 
-# Парсинг LaTeX-кода
-nodes, _, _ = walker.get_latex_nodes()
+    get_title(None, reset_lock_search=True)
+    get_authors(None, reset_lock_search=True)
 
-nodes_upd = []
-env = None
-for nd in nodes:
-    if type(nd) is pylxt.LatexEnvironmentNode:
-        env = nd
-    elif type(nd) not in [pylxt.LatexCommentNode, pylxt.LatexCommentNode, pylxt.LatexCharsNode]:
-       nodes_upd.append(nd)
-
-env: pylxt.LatexEnvironmentNode
+    return paper_obj
 
 
-flag_title = False
-flag_author = False
-for nd in env.nodelist:
-    if not flag_title:
-        title = get_title(nd)
+if __name__ == '__main__':
 
-        if title:
-            flag_title = True
+    path2latex = 'arx.tex'
+    with open(path2latex, 'r') as f:
+        latex_txt = f.read()
 
-    if not flag_author:
-        author = get_author(nd)
+    # Создание экземпляра LatexWalker
+    walker = pylxt.LatexWalker(latex_txt)
 
-        if author:
-            flag_author = True
+    # Парсинг LaTeX-кода
+    paper_nodes, _, _ = walker.get_latex_nodes()
 
+    paper = simple_parser(paper_nodes)
 
-print(title)
-print(author)
-
-# print(nodes_upd)
-# print(type(nodes_upd[0]))
-# print(len(nodes_upd))
+    print(paper.title)
+    print(paper.authors)

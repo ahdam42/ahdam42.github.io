@@ -52,6 +52,7 @@ class PaperDoc(BaseModel):
 
 class Paper(BaseModel):
     title: str = ''
+    authors: str = ''
     title_id: str = ''
     summary: str = ''
 
