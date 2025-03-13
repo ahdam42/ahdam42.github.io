@@ -41,6 +41,7 @@ class PaperDocReference(BaseModel):
 
 
 class PaperDoc(BaseModel):
+    abstract: str = ''
     text: List[PaperDocPiece] = field(default_factory=lambda: [PaperDocPiece()])
     equations: List[PaperDocEquation] = field(default_factory=lambda: [PaperDocEquation()])
     pictures: List[PaperDocPicture] = field(default_factory=lambda: [PaperDocPicture()])

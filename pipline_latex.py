@@ -1,4 +1,5 @@
 import pylatexenc.latexwalker as pylxt
+from pylatexenc.latex2text import LatexNodes2Text
 import re
 from typing import Union
 
@@ -54,7 +55,9 @@ def get_env(nodes, env_name: str) -> Union[None, pylxt.LatexEnvironmentNode]:
 
 
 def get_document(nodes: list) -> Union[None, pylxt.LatexEnvironmentNode]:
-    return get_env(nodes, 'document')
+    env = get_env(nodes, 'document')
+    print(env)
+    return env
 
 
 @lock_search
@@ -73,20 +76,12 @@ def get_authors(node, reset_lock_search=False) -> Union[None, str]:
     if type(node) is pylxt.LatexMacroNode:
         node: pylxt.LatexMacroNode
 
-        author_line = ''
         if node.macroname == 'author':
-            for nd in node.nodeargd.argnlist[0].nodelist:
-                if type(nd) is pylxt.LatexCharsNode:
-                    nd: pylxt.LatexCharsNode
+            latex_to_text = LatexNodes2Text()
+            txt = latex_to_text.nodelist_to_text([node.nodeargd.argnlist[0]])
+            txt = re.sub(r'\s+', ' ', txt)
 
-                    author_line += nd.chars
-
-        if author_line:
-            author_line = re.sub(r'\s+', ' ', author_line)
-
-            return author_line
-        else:
-            return None
+            return txt
     else:
         return None
 
@@ -98,14 +93,9 @@ def get_abstract(node, reset_lock_search=False) -> Union[None, str]:
     if env is None:
         return None
 
-    txt = ''
-    for nd in env.nodelist:
-        if type(nd) is pylxt.LatexCharsNode:
-            nd: pylxt.LatexCharsNode
-
-            txt += nd.chars
-        else:
-            print(nd)
+    latex_to_text = LatexNodes2Text()
+    txt = latex_to_text.nodelist_to_text([env])
+    txt = re.sub(r'\s+', ' ', txt)
 
     return txt
 
@@ -118,12 +108,11 @@ def simple_parser(latex_nodes: list) -> DataObj.Paper:
     for nd in env.nodelist:
         paper_obj.title = get_title(nd)
         paper_obj.authors = get_authors(nd)
-        abst = get_abstract(nd)
-
-    print(abst)
+        paper_obj.doc.abstract = get_abstract(nd)
 
     get_title(None, reset_lock_search=True)
     get_authors(None, reset_lock_search=True)
+    get_abstract(None, reset_lock_search=True)
 
     return paper_obj
 
@@ -140,3 +129,4 @@ if __name__ == '__main__':
 
     print(paper.title)
     print(paper.authors)
+    print(paper.doc.abstract)
