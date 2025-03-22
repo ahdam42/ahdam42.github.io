@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import requests
 from typing import List
-from src.utils.utils import normalize_arxiv_id, sanitize_text
+from utils.utils import normalize_arxiv_id, sanitize_text
 
 MAX_PAGES_FOR_SUMMARY = 5
 CHUNK_SIZE = 5 

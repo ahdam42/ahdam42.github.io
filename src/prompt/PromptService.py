@@ -1,4 +1,4 @@
-RELEVANCE_QUESTION = ''
+RELEVANCE_QUESTION = 'Does the article discuss topics related to autonomous driving or topics that can aid in understanding autonomous driving?'
 from typing import List
 
 class PromptService:
