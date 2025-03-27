@@ -10,6 +10,7 @@ def lock_search(func):
     """
     After walk through the list of latex nodes, function must be reset - func(Any=None, reset_lock_search=True)
     """
+
     def wrapped(*args, **kwargs):
         # check and add attributes
         try:
@@ -38,6 +39,7 @@ def lock_search(func):
             func.__flag__ = True
             func.__cache__ = rez
             return func.__cache__
+
     return wrapped
 
 
@@ -56,8 +58,18 @@ def get_env(nodes, env_name: str) -> Union[None, pylxt.LatexEnvironmentNode]:
 
 def get_document(nodes: list) -> Union[None, pylxt.LatexEnvironmentNode]:
     env = get_env(nodes, 'document')
-    print(env)
     return env
+
+
+def flatten_env(nested_list):
+    result = []
+    for i in nested_list:
+        try:
+            if isinstance(i.nodelist, list):
+                result += flatten_env(i.nodelist)
+        except AttributeError:
+            result.append(i)
+    return result
 
 
 @lock_search
@@ -103,6 +115,17 @@ def get_abstract(node, reset_lock_search=False) -> Union[None, str]:
 def simple_parser(latex_nodes: list) -> DataObj.Paper:
     env = get_document(paper_nodes)
 
+    print(env.nodelist)
+
+    env_flatten = flatten_env(env.nodelist)
+
+    with open('output.txt', 'w') as f:
+        for i in env_flatten:
+            try:
+                f.write(i.chars)
+            except AttributeError:
+                pass
+
     paper_obj = DataObj.Paper()
 
     for nd in env.nodelist:
@@ -118,7 +141,7 @@ def simple_parser(latex_nodes: list) -> DataObj.Paper:
 
 
 if __name__ == '__main__':
-    path2latex = 'arx.tex'
+    path2latex = 'data/arx.tex'
     with open(path2latex, 'r') as f:
         latex_txt = f.read()
 
