@@ -61,7 +61,7 @@ def get_document(nodes: list) -> Union[None, pylxt.LatexEnvironmentNode]:
     return env
 
 
-def flatten_env(nested_list):
+def flatten_env(nested_list: list) -> list:
     result = []
     for i in nested_list:
         try:
