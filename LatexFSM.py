@@ -30,6 +30,8 @@ class LatexFlowParse:
             'get_bib',
         ]
 
+        self.last_state = 'get_env_document'
+
         # {
         #     'trigger': 'start_reading',
         #     'source': 'idle',
@@ -41,19 +43,23 @@ class LatexFlowParse:
 
         self.transitions = [
             {
-                'trigger': 'tr_load_tex',
+                'trigger': 'run',
                 'source': 'idle',
                 'dest': 'open_tex',
                 'after': 'load_tex',
              },
             {
-                'trigger': 'tr_get_document',
+                'trigger': 'run',
                 'source': 'open_tex',
                 'dest': 'get_env_document'
             }
         ]
 
         self.machine = Machine(model=self, states=self.states, transitions=self.transitions, initial=self.states[0])
+
+    def parse(self):
+        while self.state != self.last_state:
+            self.trigger('run')
 
     def load_tex(self):
         try:
@@ -65,8 +71,6 @@ class LatexFlowParse:
 
         walker = pylxt.LatexWalker(self.tex)
         self.all_nodes, _, _ = walker.get_latex_nodes()
-
-        self.tr_get_document()
 
     def get_document(self):
         self.env = self.get_env(self.all_nodes, 'document')
@@ -89,6 +93,4 @@ if __name__ == '__main__':
     path2latex = 'data/arx.tex'
 
     fsm = LatexFlowParse(path2latex)
-    print(fsm.state)
-    fsm.tr_load_tex()
-    print(fsm.state)
+    fsm.parse()
