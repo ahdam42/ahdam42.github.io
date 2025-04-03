@@ -115,14 +115,25 @@ def get_abstract(node, reset_lock_search=False) -> Union[None, str]:
 def simple_parser(latex_nodes: list) -> DataObj.Paper:
     env = get_document(paper_nodes)
 
-    print(env.nodelist)
+    # print(env.nodelist)
 
     env_flatten = flatten_env(env.nodelist)
 
-    with open('output.txt', 'w') as f:
+    with open('temp/output.txt', 'w') as f:
         for i in env_flatten:
+            # if type(i) is pylxt.LatexMacroNode:
+            #     # print(i)
+            #     if i.macroname == "%":
+            #         f.write("%")
+            #
+            #     continue
+            # else:
+            #     pass
+
             try:
-                f.write(i.chars)
+                # f.write(i.chars)
+
+                f.write(str(i) + "\n\n\n")
             except AttributeError:
                 pass
 
