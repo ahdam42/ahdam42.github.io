@@ -1,3 +1,7 @@
+### How to configure project
+`uv pip install -e ".[dev]"`  
+`pre-commit install`
+
 ### How to run research
 - Run LMStudio
 - Put articles of interest in the “to research” folder.

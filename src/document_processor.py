@@ -1,56 +1,58 @@
+"""Main file."""
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
-from typing import List, Callable
-
-from DAO.ProcessingState import ProcessingState
-from prompt.LLMService import LLMService
-from prompt.PromptService import PromptService
-from utils.PDFUtils import PDFUtils
+from DAO.processing_state import ProcessingState
+from prompt.llm_service import LLMService
+from prompt.prompt_service import PromptService
+from utils.pdf_utils import PDFUtils
 from utils.utils import batched, sanitize_text, setup_signal_handler
 
 GROUP_SIZE = 10  # Items per aggregation group
 
+# Set up logging
+logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler('processing.log'), logging.StreamHandler()]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("processing.log"), logging.StreamHandler()],
 )
 
 def hierarchical_aggregation(
-        content: List[str],
-        prompt_creator: Callable[[List[str], int], str],
-        level_name: str
+        content: list[str],
+        prompt_creator: Callable[[list[str], int], str],
+        level_name: str,
 ) -> str:
-    """Recursive aggregation with error handling"""
+    """Recursive aggregation with error handling."""
     aggregated = []
-    for group_number, group in enumerate(batched(content, GROUP_SIZE), 1):
-        try:
+    try:
+        for group_number, group in enumerate(batched(content, GROUP_SIZE), 1):
             group_prompt = prompt_creator(group, group_number)
             response = LLMService.get_llm_response(group_prompt)
             if response:
                 aggregated.append(response)
-                logging.info(f"Aggregated {level_name} group {group_number}")
+                logger.info("Aggregated %s group %d", level_name, group_number)
             else:
-                logging.warning(f"Empty response for group {group_number}")
-        except Exception as e:
-            logging.error(f"Error processing group {group_number}: {str(e)}")
+                logger.warning("Empty response for group %d", group_number)
+    except Exception:
+        logger.exception("Error processing group" )
 
     if len(aggregated) > 1:
         return hierarchical_aggregation(aggregated, prompt_creator, f"{level_name}-groups")
     return aggregated[0] if aggregated else ""
 
-def process_article(pdf_path: Path, question: str, state: ProcessingState):
-    """Process single article with validation"""
+def process_article(pdf_path: Path, question: str, state: ProcessingState) -> None:
+    """Process single article with validation."""
     article_id = pdf_path.stem
     if article_id in state.data["processed_articles"]:
-        logging.info(f"Skipping processed article: {article_id}")
+        logger.info("Skipping processed article: %s", article_id)
         return
 
     try:
         chunks = PDFUtils.read_pdf_chunks(pdf_path)
         if not chunks:
-            logging.warning(f"No readable content in {article_id}")
+            logger.warning("No readable content in %s", article_id)
             return
 
         processed_chunks = []
@@ -64,20 +66,20 @@ def process_article(pdf_path: Path, question: str, state: ProcessingState):
             article_response = hierarchical_aggregation(
                 processed_chunks,
                 PromptService.create_chunk_aggregation_prompt,
-                "chunks"
+                "chunks",
             )
             state.data["article_outputs"][article_id] = article_response
             state.data["processed_articles"].append(article_id)
             state.save()
-            logging.info(f"Processed article: {article_id}")
+            logger.info("Processed article: %s", article_id)
         else:
-            logging.warning(f"No valid responses for {article_id}")
+            logger.warning("No valid responses for %s", article_id)
 
-    except Exception as e:
-        logging.error(f"Failed processing {article_id}: {str(e)}")
+    except Exception:
+        logger.exception("Failed processing %s", article_id)
 
-def main(question: str):
-    """Main workflow with enhanced validation"""
+def main(question: str) -> None:
+    """Runner."""
     pdf_dir = Path("research")
     pdf_files = list(pdf_dir.glob("*.pdf"))
 
@@ -93,7 +95,7 @@ def main(question: str):
             process_article(pdf_path, question, state)
 
     valid_articles = [
-        (id, text) for id, text in state.data["article_outputs"].items()
+        (article_id, text) for article_id, text in state.data["article_outputs"].items()
         if text.strip()
     ]
 
@@ -101,13 +103,13 @@ def main(question: str):
         final_answer = hierarchical_aggregation(
             valid_articles,
             PromptService.create_article_aggregation_prompt,
-            "articles"
+            "articles",
         )
 
-        with open("final_answer.md", "w", encoding="utf-8") as f:
+        with Path("final_answer.md").open("w", encoding="utf-8") as f:
             f.write(f"# Research Synthesis\n\n**Question**: {question}\n\n## Final Analysis\n{final_answer}")
     else:
-        logging.error("No valid articles processed")
+        logger.error("No valid articles processed")
 
 if __name__ == "__main__":
     user_question = """
@@ -118,7 +120,7 @@ if __name__ == "__main__":
     Highlight any novel mathematical contributions
     Mention equations or formulas that are central to the methodology
 
-Where possible, include:
+    Where possible, include:
     Page numbers where key mathematical elements appear
     Relationships between different mathematical tools used
     Comparisons with standard approaches in the field"""
